@@ -1,0 +1,90 @@
+apiVersion: synthrange/v1alpha1
+kind: Playbook
+metadata:
+  id: web-activity-triage
+  name: Web Activity Triage
+  version: v0.1.0
+  status: available
+  description: Independent defensive triage of web activity and target health evidence.
+spec:
+  role: blue
+  objective: Establish baseline health, identify meaningful web activity, and convert observations into detections and defensive intelligence.
+  requires:
+    targetCapabilities:
+      - service.health
+      - telemetry.container-logs
+    components:
+      - observer
+      - traffic-proxy
+  authority:
+    autonomous:
+      - Baseline target health and available telemetry.
+      - Inspect Observer, Traffic Proxy, and target evidence.
+      - Classify activity and develop detection opportunities.
+      - Recommend reversible defensive improvements.
+    approvalRequired:
+      - Changes to target state, accounts, network policy, or service availability.
+      - Containment or blocking actions that alter the active run.
+    prohibited:
+      - Destroying or rewriting evidence.
+      - Probing target paths merely to reproduce Red activity during baseline.
+      - Treating expected run activity as malicious without evidence and context.
+  inputs:
+    - name: run_id
+      required: true
+      description: Unique Observer-owned run identifier.
+    - name: target_endpoint
+      required: true
+      description: Approved target endpoint used for health context.
+    - name: observer_run_dir
+      required: true
+      description: Read-only location of collected run evidence.
+  phases:
+    - id: baseline
+      intent: Establish target health and normal evidence before adversarial activity.
+      decisionSpace:
+        - Select the minimum telemetry needed for a defensible baseline.
+        - Record known blind spots rather than inventing certainty.
+    - id: triage
+      intent: Identify and classify meaningful activity from available evidence.
+      decisionSpace:
+        - Choose relevant proxy, target, and host evidence.
+        - Correlate timing, paths, methods, errors, volume, and source context.
+    - id: assess
+      intent: Determine defensive significance and confidence.
+      decisionSpace:
+        - Separate confirmed facts, likely interpretations, and unknowns.
+        - Map to ATT&CK only when the evidence supports the mapping.
+    - id: report
+      intent: Produce findings, detection opportunities, and a defensive backlog.
+      decisionSpace:
+        - Prioritize recommendations by evidence, impact, and implementation cost.
+  evidence:
+    - type: proxy.http-events
+      source: traffic-proxy
+      description: Structured web request and response metadata for the run.
+    - type: target.container-logs
+      source: target
+      description: Target application output collected by Observer.
+    - type: target.health
+      source: observer
+      description: Target availability before and after observed activity.
+    - type: blue.triage-report
+      source: blue
+      description: Findings, confidence, gaps, detections, and recommendations.
+  successCriteria:
+    - Significant web activity is classified with evidence and confidence.
+    - Detection opportunities and telemetry gaps are documented.
+    - Recommendations preserve the distinction between observation and response.
+  stopConditions:
+    - Required evidence is unavailable or its provenance cannot be established.
+    - Investigation would require an undeclared state-changing action.
+    - The operator issues a stop instruction.
+  outputs:
+    - blue/observations.md
+    - blue/report.md
+  composition:
+    requiresPlaybooks:
+      - run-evidence-baseline
+    complements:
+      - web-surface-discovery

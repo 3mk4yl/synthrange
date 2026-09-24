@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. /srv/synthrange/config/hosts.env
+RUN_DIR=${1:-/srv/synthrange/latest}
+[ -n "${CAPTURE_FILTER:-}" ] || { echo "CAPTURE_FILTER must be explicitly scoped" >&2; exit 2; }
+mkdir -p "$RUN_DIR/artifacts/pcaps" "$RUN_DIR/state"
+PIDFILE="$RUN_DIR/state/tcpdump.pid"
+if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then echo "capture already running pid=$(cat "$PIDFILE")" >&2; exit 1; fi
+/srv/synthrange/scripts/sr-event "$RUN_DIR" capture.start "iface=$CAPTURE_INTERFACE filter=$CAPTURE_FILTER rotate=${CAPTURE_ROTATE_SECONDS}s files=$CAPTURE_ROTATE_FILES" >/dev/null
+nohup sudo tcpdump -i "$CAPTURE_INTERFACE" -nn -s 0 -G "$CAPTURE_ROTATE_SECONDS" -W "$CAPTURE_ROTATE_FILES" -w "$RUN_DIR/artifacts/pcaps/capture-%Y%m%d-%H%M%S.pcap" $CAPTURE_FILTER > "$RUN_DIR/state/tcpdump.out" 2> "$RUN_DIR/state/tcpdump.err" &
+echo $! > "$PIDFILE"; echo "started tcpdump pid=$(cat "$PIDFILE")"

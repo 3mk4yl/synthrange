@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+lines="${1:-20}"
+tail -n "$lines" /srv/synthrange-traffic-proxy/logs/proxy-events.jsonl | jq -c .

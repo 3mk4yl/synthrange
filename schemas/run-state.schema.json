@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://synthrange.dev/schemas/run-state.schema.json",
+  "title": "SynthRange Run State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "status"],
+  "properties": {
+    "apiVersion": {"const": "synthrange/v1alpha1"},
+    "kind": {"const": "RunState"},
+    "metadata": {
+      "type": "object", "additionalProperties": false, "required": ["runId"],
+      "properties": {"runId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{2,95}$"}}
+    },
+    "status": {
+      "type": "object", "additionalProperties": false,
+      "required": ["state", "sequence", "updatedAt", "actors", "history", "evidenceSealed"],
+      "properties": {
+        "state": {"$ref": "#/$defs/runState"},
+        "sequence": {"type": "integer", "minimum": 0},
+        "updatedAt": {"type": "string", "format": "date-time"},
+        "startedAt": {"type": ["string", "null"], "format": "date-time"},
+        "endedAt": {"type": ["string", "null"], "format": "date-time"},
+        "stopReason": {"type": ["string", "null"]},
+        "evidenceSealed": {"type": "boolean"},
+        "actors": {
+          "type": "object", "additionalProperties": false, "required": ["red", "blue"],
+          "properties": {"red": {"$ref": "#/$defs/actor"}, "blue": {"$ref": "#/$defs/actor"}}
+        },
+        "history": {"type": "array", "items": {"$ref": "#/$defs/history"}}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "sealed"}}, "required": ["state"]},
+          "then": {"properties": {"evidenceSealed": {"const": true}}}
+        },
+        {
+          "if": {"properties": {"evidenceSealed": {"const": true}}, "required": ["evidenceSealed"]},
+          "then": {"properties": {"state": {"const": "sealed"}}}
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "runState": {"enum": ["created", "preflight", "baseline", "active", "finalizing", "stopped", "collected", "sealed"]},
+    "actorState": {"enum": ["pending", "ready", "running", "finalizing", "complete", "stopped"]},
+    "actor": {
+      "type": "object", "additionalProperties": false, "required": ["state", "requiredOutputs"],
+      "properties": {
+        "state": {"$ref": "#/$defs/actorState"},
+        "requiredOutputs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$))[a-z0-9][a-z0-9._/-]*$"}},
+        "completedAt": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "history": {
+      "type": "object", "additionalProperties": false, "required": ["sequence", "time", "subject", "from", "to"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 1},
+        "time": {"type": "string", "format": "date-time"},
+        "subject": {"enum": ["run", "red", "blue"]},
+        "from": {"type": "string"},
+        "to": {"type": "string"},
+        "reason": {"type": "string"}
+      }
+    }
+  }
+}

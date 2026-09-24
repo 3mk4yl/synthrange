@@ -1,0 +1,51 @@
+name: Feature proposal
+description: Propose a focused SynthRange capability or improvement.
+title: "proposal: "
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or contributor problem should be solved?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+      description: Describe behavior and boundaries, not only implementation.
+    validations:
+      required: true
+  - type: dropdown
+    id: maturity
+    attributes:
+      label: Intended maturity
+      options: [Available, Prototype, Planned, Vision]
+    validations:
+      required: true
+  - type: textarea
+    id: architecture
+    attributes:
+      label: Architecture and contract impact
+      description: Components, integrations, schemas, capabilities, compatibility, and migrations.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable outcomes and verification.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues, discussions, and the roadmap.
+          required: true
+        - label: The proposal is not a request to assess an unauthorized system.
+          required: true

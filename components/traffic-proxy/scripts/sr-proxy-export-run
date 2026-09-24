@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+
+
+def timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def main() -> int:
+    if len(sys.argv) not in {4, 5}:
+        print("usage: sr-proxy-export-run RUN_ID SINCE UNTIL [LOG_PATH]", file=sys.stderr)
+        return 2
+    run_id, since_value, until_value = sys.argv[1:4]
+    try:
+        since, until = timestamp(since_value), timestamp(until_value)
+    except ValueError as error:
+        print(f"invalid export window: {error}", file=sys.stderr)
+        return 2
+    if since >= until:
+        print("export SINCE must be earlier than UNTIL", file=sys.stderr)
+        return 2
+    source = Path(
+        sys.argv[4]
+        if len(sys.argv) == 5
+        else os.environ.get(
+            "LOG_PATH",
+            "/srv/synthrange-traffic-proxy/logs/proxy-events.jsonl",
+        )
+    )
+    if not source.exists():
+        return 0
+    with source.open(encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, 1):
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+                event_time = timestamp(event["ts"])
+            except (json.JSONDecodeError, KeyError, ValueError) as error:
+                print(f"{source}:{line_number}: invalid event: {error}", file=sys.stderr)
+                return 1
+            if event.get("run_id") == run_id and since <= event_time <= until:
+                sys.stdout.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

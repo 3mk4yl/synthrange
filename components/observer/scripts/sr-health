@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. /srv/synthrange/config/hosts.env
+RUN_DIR=${1:-/srv/synthrange/latest}; URL=${2:-$TARGET_URL}
+mkdir -p "$RUN_DIR/artifacts/validation"
+OUT="$RUN_DIR/artifacts/validation/health-$(date -u +%Y%m%d-%H%M%S).txt"
+if curl --connect-timeout 3 --max-time 8 -fsS "$URL" > "$OUT" 2>&1; then
+  /srv/synthrange/scripts/sr-event "$RUN_DIR" health.target_up "url=$URL" --artifact="${OUT#$RUN_DIR/}" >/dev/null; echo "target up: $URL"
+else
+  /srv/synthrange/scripts/sr-event "$RUN_DIR" health.target_down "url=$URL" --artifact="${OUT#$RUN_DIR/}" >/dev/null; echo "target down: $URL" >&2; exit 1
+fi

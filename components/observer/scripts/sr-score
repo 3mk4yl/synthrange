@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+import json, socket, subprocess, sys
+from datetime import datetime, timezone
+from pathlib import Path
+if len(sys.argv) < 5:
+    print("usage: sr-score RUN_DIR TEAM POINTS REASON [EVIDENCE]", file=sys.stderr); raise SystemExit(2)
+run_dir=Path(sys.argv[1]).resolve(); team=sys.argv[2]; points=int(sys.argv[3]); reason=sys.argv[4]; evidence=sys.argv[5] if len(sys.argv)>5 else ""
+obj={"time_utc":datetime.now(timezone.utc).isoformat(),"team":team,"points":points,"reason":reason,"evidence":evidence,"observer":socket.gethostname()}
+path=run_dir/"score_events.jsonl"; path.parent.mkdir(parents=True, exist_ok=True)
+with path.open('a') as f: f.write(json.dumps(obj, sort_keys=True)+"\n")
+subprocess.run(["/srv/synthrange/scripts/sr-event", str(run_dir), "score.event", f"{team} {points}: {reason}", f"--evidence={evidence}"], stdout=subprocess.DEVNULL, check=False)
+print(json.dumps(obj, sort_keys=True))

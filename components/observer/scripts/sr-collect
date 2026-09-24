@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT=${SYNTHRANGE_ROOT:-/srv/synthrange}
+. "$ROOT/config/hosts.env"
+RUN_DIR=${1:-$ROOT/latest}
+RUN_DIR=$(readlink -f "$RUN_DIR")
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+RUN_ID=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["run_id"])' "$RUN_DIR/metadata.json")
+readarray -t WINDOW < <(python3 - "$RUN_DIR/state/run-state.json" "${2:-}" "${3:-}" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+state=json.load(open(sys.argv[1]))["status"]
+since=sys.argv[2] or state.get("startedAt")
+until=sys.argv[3] or state.get("endedAt") or datetime.now(timezone.utc).isoformat().replace("+00:00","Z")
+if not since:
+    raise SystemExit("run has no startedAt; pass SINCE explicitly")
+try:
+    since_time=datetime.fromisoformat(since.replace("Z", "+00:00"))
+    until_time=datetime.fromisoformat(until.replace("Z", "+00:00"))
+except ValueError as error:
+    raise SystemExit(f"invalid collection window: {error}")
+if since_time >= until_time:
+    raise SystemExit("collection SINCE must be earlier than UNTIL")
+print(since); print(until)
+PY
+)
+SINCE=${WINDOW[0]}; UNTIL=${WINDOW[1]}
+STATE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"]["state"])' "$RUN_DIR/state/run-state.json")
+if [ "$STATE" != stopped ]; then
+  echo "run must be stopped before collection, got: $STATE" >&2
+  exit 1
+fi
+mkdir -p "$RUN_DIR"/{red,blue,proxy,target,observer,artifacts/logs,artifacts/validation}
+"$SCRIPT_DIR/sr-event" "$RUN_DIR" collect.start "since=$SINCE until=$UNTIL" >/dev/null
+"$SCRIPT_DIR/sr-snapshot" "$RUN_DIR" collect >/dev/null || true
+"$SCRIPT_DIR/sr-pull-logs" "$RUN_DIR" "$SINCE" "$UNTIL" >/dev/null || true
+if ! ssh $SSH_OPTS "$PROXY_HOST" "/srv/synthrange-traffic-proxy/scripts/sr-proxy-export-run '$RUN_ID' '$SINCE' '$UNTIL'" > "$RUN_DIR/proxy/proxy-events.jsonl" 2> "$RUN_DIR/proxy/proxy-events.err"; then
+  "$SCRIPT_DIR/sr-event" "$RUN_DIR" collect.proxy_failed "required run-scoped Proxy evidence unavailable" --artifact=proxy/proxy-events.err >/dev/null
+  exit 1
+fi
+ssh $SSH_OPTS "$PROXY_HOST" 'command -v sr-proxy-status >/dev/null && sr-proxy-status || /srv/synthrange-traffic-proxy/scripts/sr-proxy-status' > "$RUN_DIR/proxy/status.txt" 2> "$RUN_DIR/proxy/status.err" || true
+"$SCRIPT_DIR/sr-event" "$RUN_DIR" collect.proxy "run-scoped Proxy evidence collected" --artifact=proxy/proxy-events.jsonl >/dev/null
+ssh $SSH_OPTS "$TARGET_HOST" 'hostname; command -v docker >/dev/null && docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}" || true' > "$RUN_DIR/target/service-status.txt" 2> "$RUN_DIR/target/service-status.err" || true
+if ! ssh $SSH_OPTS "$TARGET_HOST" "docker logs juice-shop --since '$SINCE' --until '$UNTIL' --timestamps 2>&1" > "$RUN_DIR/target/juice-shop.log" 2> "$RUN_DIR/target/juice-shop.err"; then
+  "$SCRIPT_DIR/sr-event" "$RUN_DIR" collect.target_failed "required exact-window Target evidence unavailable" --artifact=target/juice-shop.err >/dev/null
+  exit 1
+fi
+"$SCRIPT_DIR/sr-blue-append-segment" "$RUN_DIR" "$RUN_DIR/proxy/proxy-events.jsonl" "$RUN_DIR/target/juice-shop.log" "$SINCE" "$UNTIL" >/dev/null
+"$SCRIPT_DIR/sr-event" "$RUN_DIR" collect.finished "Observer run-scoped collection completed" --artifact=. >/dev/null
+"$SCRIPT_DIR/sr-run-state" "$RUN_DIR" run collected "run-scoped collection complete" >/dev/null
+"$SCRIPT_DIR/sr-index-artifacts" "$RUN_DIR" >/dev/null
+[ ! -x "$SCRIPT_DIR/sr-reindex-runs" ] || SYNTHRANGE_ROOT="$ROOT" "$SCRIPT_DIR/sr-reindex-runs" >/dev/null || true
+echo "$RUN_DIR"

@@ -1,0 +1,54 @@
+apiVersion: synthrange/v1alpha1
+kind: TargetAdapter
+metadata:
+  id: juice-shop
+  name: OWASP Juice Shop
+  version: v0.1.0
+  status: available
+  description: Containerized intentionally vulnerable web application target.
+spec:
+  platform: web-application
+  deployment:
+    type: compose
+    entrypoint: compose.yaml
+    notes: Run on an isolated or explicitly authorized target host.
+  capabilities:
+    - deployment.compose
+    - reset.container-recreate
+    - service.health
+    - telemetry.container-logs
+    - web.http
+    - web.single-page-application
+    - web.unauthenticated-surface
+  endpoints:
+    - id: web
+      protocol: http
+      port: 3000
+      path: /
+      exposure: adversarial
+      description: Primary application surface used by Red and health checks.
+  telemetry:
+    - id: container-logs
+      type: container-log
+      source: docker:juice-shop
+      description: Standard output and error from the Juice Shop container.
+    - id: service-health
+      type: health
+      source: http://localhost:3000/
+      description: HTTP health signal from the target host.
+  lifecycle:
+    start:
+      - docker compose up -d
+    verify:
+      - docker compose ps
+      - curl --fail http://localhost:3000/
+    reset:
+      - docker compose down --volumes --remove-orphans
+      - docker compose up -d --force-recreate
+    stop:
+      - docker compose down
+  requirements:
+    components: []
+    tools:
+      - docker
+      - docker-compose-plugin

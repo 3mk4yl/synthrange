@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+import argparse, json, time
+from pathlib import Path
+
+
+def load_jsonl(path):
+    if not path.exists():
+        return []
+    out=[]
+    for line in path.read_text(errors='replace').splitlines():
+        if not line.strip():
+            continue
+        try: out.append(json.loads(line))
+        except Exception: out.append({'time_utc':'', 'type':'parse_error', 'detail': line[:200]})
+    return out
+
+
+def render(run_dir):
+    events=[]
+    for e in load_jsonl(run_dir/'timeline.jsonl'):
+        events.append(('timeline', e.get('time_utc') or e.get('ts') or '', e.get('type',''), e.get('detail') or e.get('summary','')))
+    for e in load_jsonl(run_dir/'score_events.jsonl'):
+        detail = e.get('detail') or e.get('reason') or ''
+        kind = e.get('score_item') or f"score.{e.get('team','')}"
+        status = e.get('status') or e.get('points','')
+        events.append(('score', e.get('time_utc') or '', str(kind), f"{status} {detail}".strip()))
+    proxy = run_dir/'proxy'/'red-proxy-events.jsonl'
+    if not proxy.exists():
+        proxy = run_dir/'proxy'/'proxy-events-full.jsonl'
+    for e in load_jsonl(proxy)[-20:]:
+        events.append(('proxy', e.get('ts') or e.get('time_utc') or '', e.get('event_type',''), f"{e.get('status')} {e.get('source_ip','')} -> {e.get('target_host','')}:{e.get('target_port','')}{e.get('path','')} {e.get('scope_status','')}"))
+    events.sort(key=lambda x: x[1])
+    print(f"SynthRange watch: {run_dir}")
+    print("time                         source    event                         detail")
+    print("-"*110)
+    for source, ts, kind, detail in events[-60:]:
+        print(f"{ts[:27]:27} {source:8} {kind[:29]:29} {detail[:90]}")
+
+
+def main():
+    ap=argparse.ArgumentParser(description='Readable SynthRange run feed from Observer artifacts')
+    ap.add_argument('run_dir', nargs='?', default='/srv/synthrange/latest')
+    ap.add_argument('-f','--follow', action='store_true')
+    ap.add_argument('-n','--interval', type=float, default=3.0)
+    args=ap.parse_args()
+    run_dir=Path(args.run_dir).resolve()
+    if not args.follow:
+        render(run_dir); return
+    while True:
+        print('\033[2J\033[H', end='')
+        render(run_dir)
+        time.sleep(args.interval)
+
+if __name__ == '__main__':
+    main()

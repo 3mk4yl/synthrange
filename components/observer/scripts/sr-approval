@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import socket
+import sys
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+DECISIONS = {"approved", "denied", "deferred"}
+ROLES = {"operator", "red", "blue", "observer", "guardrail"}
+
+
+def main() -> int:
+    if len(sys.argv) < 6:
+        print("usage: sr-approval RUN_DIR ROLE DECISION ACTION REASON [AUTHORITY_REF]", file=sys.stderr)
+        return 2
+    run_dir = Path(sys.argv[1]).resolve()
+    role, decision, action, reason = sys.argv[2:6]
+    authority_ref = sys.argv[6] if len(sys.argv) > 6 else ""
+    if role not in ROLES:
+        print(f"invalid role: {role}", file=sys.stderr)
+        return 2
+    if decision not in DECISIONS:
+        print(f"invalid decision: {decision}", file=sys.stderr)
+        return 2
+    state_path = run_dir / "state/run-state.json"
+    if state_path.exists() and json.loads(state_path.read_text(encoding="utf-8"))["status"]["evidenceSealed"]:
+        print("sealed run is immutable", file=sys.stderr)
+        return 1
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    approval_id = f"approval-{uuid.uuid4()}"
+    record = {
+        "approval_id": approval_id,
+        "time_utc": timestamp,
+        "role": role,
+        "decision": decision,
+        "action": action,
+        "reason": reason,
+        "authority_ref": authority_ref,
+    }
+    approvals = run_dir / "approvals.jsonl"
+    approvals.parent.mkdir(parents=True, exist_ok=True)
+    with approvals.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
+    event = {
+        "time_utc": timestamp,
+        "type": "approval.recorded",
+        "detail": f"{role} {decision}: {action}",
+        "observer": socket.gethostname(),
+        "approval_id": approval_id,
+        "role": role,
+        "decision": decision,
+        "authority_ref": authority_ref,
+    }
+    with (run_dir / "timeline.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, sort_keys=True) + "\n")
+    print(json.dumps(record, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

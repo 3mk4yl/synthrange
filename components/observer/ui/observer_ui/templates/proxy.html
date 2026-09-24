@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Proxy events: {{ run_id }}</h2>
+<table><tr><th>Time</th><th>Run</th><th>Action</th><th>Method</th><th>Path</th><th>Status</th><th>Scope</th><th>Bytes</th><th>File</th></tr>
+{% for e in events %}<tr><td>{{ e.ts or "" }}</td><td>{{ e.run_id or "" }}</td><td>{{ e.red_action_id or "" }}</td><td><code>{{ e.method or "" }}</code></td><td><code>{{ e.path or "" }}</code></td><td>{{ e.status or "" }}</td><td>{{ e.scope_status or e.event_type or "" }}</td><td>{{ e.response_bytes or "" }}</td><td>{{ e._file or "" }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

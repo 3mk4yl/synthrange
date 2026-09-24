@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Runs</h2>
+<table>
+<tr><th>Run ID</th><th>Status</th><th>Started</th><th>Timeline</th><th>Proxy</th><th>Reports</th><th>Path</th></tr>
+{% for run in runs %}
+<tr>
+  <td><a href="/runs/{{ run.run_id }}">{{ run.run_id }}</a></td>
+  <td>{{ run.status }}</td>
+  <td>{{ run.started_at or "" }}</td>
+  <td>{{ run.timeline_events }}</td>
+  <td>{{ run.proxy_events }}</td>
+  <td>R:{{ run.red_report }} B:{{ run.blue_report }} F:{{ run.final_report }}</td>
+  <td><code>{{ run.path }}</code></td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}

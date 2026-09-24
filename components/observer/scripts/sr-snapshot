@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+. /srv/synthrange/config/hosts.env
+RUN_DIR=${1:-/srv/synthrange/latest}
+PHASE=${2:-snapshot}
+RUN_DIR=$(readlink -f "$RUN_DIR")
+OUT_BASE="$RUN_DIR/artifacts/bbt/$PHASE"
+mkdir -p "$OUT_BASE"
+
+snapshot_host() {
+  local label="$1"
+  local host="$2"
+  local outdir="$OUT_BASE/$label"
+  local cmd_name cmd disk_cmd
+  mkdir -p "$outdir"
+  echo "snapshot $label $host"
+  if ! ssh $SSH_OPTS "$host" 'hostname' > "$outdir/hostname.txt" 2> "$outdir/ssh.err"; then
+    /srv/synthrange/scripts/sr-event "$RUN_DIR" "bbt.${PHASE}.${label}.failed" "ssh unavailable for $host" --artifact="${outdir#$RUN_DIR/}/ssh.err" >/dev/null || true
+    return 0
+  fi
+  for cmd_name in host-snapshot proc-list net-listeners; do
+    case "$cmd_name" in
+      host-snapshot) cmd='bbt host snapshot --agent' ;;
+      proc-list) cmd='bbt proc list --agent' ;;
+      net-listeners) cmd='bbt net listeners --agent' ;;
+    esac
+    ssh $SSH_OPTS "$host" "command -v bbt >/dev/null && $cmd" > "$outdir/${cmd_name}.json" 2> "$outdir/${cmd_name}.err" || true
+  done
+  case "$label" in
+    target) disk_cmd='bbt disk usage / --depth 1 --agent' ;;
+    proxy) disk_cmd='bbt disk usage /srv/synthrange-traffic-proxy --depth 2 --agent' ;;
+    observer) disk_cmd='bbt disk usage /srv/synthrange --depth 2 --agent' ;;
+    red|blue) disk_cmd='bbt disk usage / --depth 1 --agent' ;;
+    *) disk_cmd='bbt disk usage / --depth 1 --agent' ;;
+  esac
+  ssh $SSH_OPTS "$host" "command -v bbt >/dev/null && $disk_cmd" > "$outdir/disk-usage.json" 2> "$outdir/disk-usage.err" || true
+  /srv/synthrange/scripts/sr-event "$RUN_DIR" "bbt.${PHASE}.${label}.captured" "host=$host" --artifact="${outdir#$RUN_DIR/}" >/dev/null || true
+}
+
+snapshot_host red "$RED_HOST"
+snapshot_host blue "$BLUE_HOST"
+snapshot_host target "$TARGET_HOST"
+snapshot_host proxy "$PROXY_HOST"
+snapshot_host observer "$OBSERVER_HOST"
+/srv/synthrange/scripts/sr-reindex-runs >/dev/null || true
+echo "$OUT_BASE"

@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+
+def main() -> int:
+    if len(sys.argv) != 3 or sys.argv[2] not in {"red", "blue"}:
+        print("usage: sr-finalize-role RUN_DIR red|blue", file=sys.stderr)
+        return 2
+    run_dir = Path(sys.argv[1]).resolve()
+    role = sys.argv[2]
+    state_path = run_dir / "state/run-state.json"
+    if not state_path.is_file():
+        print(f"run state not found: {state_path}", file=sys.stderr)
+        return 1
+    document = json.loads(state_path.read_text(encoding="utf-8"))
+    actor = document["status"]["actors"][role]
+    if actor["state"] == "running":
+        subprocess.run([str(Path(__file__).with_name("sr-run-state")), str(run_dir), role, "finalizing"], check=True, stdout=subprocess.DEVNULL)
+        document = json.loads(state_path.read_text(encoding="utf-8"))
+        actor = document["status"]["actors"][role]
+    if actor["state"] != "finalizing":
+        print(f"{role} must be running or finalizing, got {actor['state']}", file=sys.stderr)
+        return 1
+    missing = []
+    for relative in actor["requiredOutputs"]:
+        path = (run_dir / relative).resolve()
+        if run_dir not in path.parents:
+            print(f"required output escapes run directory: {relative}", file=sys.stderr)
+            return 1
+        if not path.is_file() or path.stat().st_size == 0:
+            missing.append(relative)
+    if missing:
+        event = Path(__file__).with_name("sr-event")
+        subprocess.run([str(event), str(run_dir), f"{role}.finalization_failed", "missing required outputs", f"--missing={','.join(missing)}"], check=False, stdout=subprocess.DEVNULL)
+        print(f"missing required outputs: {', '.join(missing)}", file=sys.stderr)
+        return 1
+    subprocess.run([str(Path(__file__).with_name("sr-run-state")), str(run_dir), role, "complete", "required outputs verified"], check=True, stdout=subprocess.DEVNULL)
+    print(f"{role}: complete")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

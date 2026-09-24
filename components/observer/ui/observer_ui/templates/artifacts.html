@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Artifacts: {{ run_id }}</h2>
+<table><tr><th>Path</th><th>Size</th><th>Kind</th><th>View</th></tr>
+{% for item in items %}<tr><td><code>{{ item.path }}</code></td><td>{{ item.size }}</td><td>{{ item.kind }}</td><td><a href="/runs/{{ run_id }}/file/{{ item.path }}">raw</a></td></tr>{% endfor %}
+</table>
+{% endblock %}

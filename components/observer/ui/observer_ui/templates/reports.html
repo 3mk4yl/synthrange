@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Reports: {{ run_id }}</h2>
+{% for name, report in reports.items() %}
+<section class="card report">
+  <h3>{{ name }} {% if report.exists %}<small>{{ report.path }}</small>{% else %}<small>missing</small>{% endif %}</h3>
+  {% if report.html %}<div class="markdown">{{ report.html | safe }}</div>{% else %}<p class="muted">Not present.</p>{% endif %}
+</section>
+{% endfor %}
+{% endblock %}

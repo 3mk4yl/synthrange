@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT=${SYNTHRANGE_ROOT:-/srv/synthrange}
+RUN_DIR=$(readlink -f "${1:-$ROOT/latest}")
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+RUN_ID=$(basename "$RUN_DIR")
+STATE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"]["state"])' "$RUN_DIR/state/run-state.json")
+if [ "$STATE" = collected ]; then
+  "$SCRIPT_DIR/sr-verify-required-artifacts" "$RUN_DIR" --pre-seal >/dev/null
+  "$SCRIPT_DIR/sr-run-state" "$RUN_DIR" run sealed "artifact index and portable archive requested" >/dev/null
+else
+  echo "run must be collected, got: $STATE" >&2
+  exit 1
+fi
+mkdir -p "$RUN_DIR/observer"
+cp "$RUN_DIR/state/run-state.json" "$RUN_DIR/observer/run-state-final.json"
+"$SCRIPT_DIR/sr-index-artifacts" "$RUN_DIR" --allow-sealed >/dev/null
+"$SCRIPT_DIR/sr-verify-required-artifacts" "$RUN_DIR" >/dev/null
+"$SCRIPT_DIR/sr-lock-run" "$RUN_DIR" >/dev/null
+ARCHIVE_DIR="$ROOT/archive"; mkdir -p "$ARCHIVE_DIR"
+ARCHIVE="$ARCHIVE_DIR/$RUN_ID.tar.gz"
+TEMP="$ARCHIVE.tmp.$$"
+trap 'rm -f "$TEMP"' EXIT
+tar -C "$(dirname "$RUN_DIR")" -czf "$TEMP" "$RUN_ID"
+tar -tzf "$TEMP" >/dev/null
+mv "$TEMP" "$ARCHIVE"
+trap - EXIT
+sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+sha256sum --check "$ARCHIVE.sha256" >/dev/null
+printf '%s\n' "$ARCHIVE"

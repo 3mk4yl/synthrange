@@ -1,0 +1,59 @@
+name: Playbook proposal
+description: Propose a reusable Red, Blue, or shared playbook.
+title: "playbook: "
+labels: [playbook, help wanted]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Playbook name
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role
+      options: [red, blue, shared]
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: Desired outcome without prescribing commands.
+    validations:
+      required: true
+  - type: textarea
+    id: capabilities
+    attributes:
+      label: Required target capabilities
+      description: Portable dotted capabilities, not target names.
+    validations:
+      required: true
+  - type: textarea
+    id: authority
+    attributes:
+      label: Authority model
+      description: Autonomous decisions, approval boundaries, and prohibited actions.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and outputs
+    validations:
+      required: true
+  - type: textarea
+    id: composition
+    attributes:
+      label: Composition
+      description: Strict playbook dependencies and complementary playbooks.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: This is a mission contract, not a command-by-command sequence.
+          required: true
+        - label: I can add a `playbook.yaml`, README, and validation tests.
+          required: true

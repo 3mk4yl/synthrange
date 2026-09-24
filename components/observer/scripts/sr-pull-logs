@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT=${SYNTHRANGE_ROOT:-/srv/synthrange}
+. "$ROOT/config/hosts.env"
+RUN_DIR=${1:-$ROOT/latest}
+SINCE=${2:?usage: sr-pull-logs RUN_DIR SINCE UNTIL}
+UNTIL=${3:?usage: sr-pull-logs RUN_DIR SINCE UNTIL}
+python3 - "$SINCE" "$UNTIL" <<'PY'
+import sys
+from datetime import datetime
+try:
+    since=datetime.fromisoformat(sys.argv[1].replace("Z", "+00:00"))
+    until=datetime.fromisoformat(sys.argv[2].replace("Z", "+00:00"))
+except ValueError as error:
+    raise SystemExit(f"invalid log window: {error}")
+if since >= until:
+    raise SystemExit("log SINCE must be earlier than UNTIL")
+PY
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+mkdir -p "$RUN_DIR/artifacts/logs"/{red,blue,target}
+pull_host() {
+  local label=$1 host=$2 outdir="$RUN_DIR/artifacts/logs/$1"; mkdir -p "$outdir"; echo "pulling $label logs from $host"
+  if ! ssh $SSH_OPTS "$host" 'hostname' > "$outdir/hostname.txt" 2> "$outdir/ssh.err"; then
+    "$SCRIPT_DIR/sr-event" "$RUN_DIR" "logs.${label}.pull_failed" "ssh unavailable for $host" --artifact="${outdir#$RUN_DIR/}/ssh.err" >/dev/null; return 0
+  fi
+  ssh $SSH_OPTS "$host" "journalctl --since '$SINCE' --until '$UNTIL' --no-pager" > "$outdir/journalctl.log" 2> "$outdir/journalctl.err" || true
+  [ "$label" != target ] || ssh $SSH_OPTS "$host" "docker logs juice-shop --since '$SINCE' --until '$UNTIL' --timestamps 2>&1 || true" > "$outdir/juice-shop.log" 2> "$outdir/docker.err" || true
+  "$SCRIPT_DIR/sr-event" "$RUN_DIR" "logs.${label}.pulled" "host=$host since=$SINCE until=$UNTIL" --artifact="${outdir#$RUN_DIR/}" >/dev/null
+}
+pull_host red "$RED_HOST"; pull_host blue "$BLUE_HOST"; pull_host target "$TARGET_HOST"
+[ ! -x "$SCRIPT_DIR/sr-reindex-runs" ] || SYNTHRANGE_ROOT="$ROOT" "$SCRIPT_DIR/sr-reindex-runs" >/dev/null || true

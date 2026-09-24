@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ run.run_id }}</h2>
+<nav class="subnav"><a href="/runs/{{ run.run_id }}/timeline">Timeline</a><a href="/runs/{{ run.run_id }}/proxy">Proxy</a><a href="/runs/{{ run.run_id }}/reports">Reports</a><a href="/runs/{{ run.run_id }}/artifacts">Artifacts</a><a href="/api/runs/{{ run.run_id }}">JSON</a></nav>
+<section class="grid">
+  <div class="card"><h3>Status</h3><p>{{ run.status }}</p><p>Started: {{ run.started_at or "unknown" }}</p><p>Finished: {{ run.finished_at or "" }}</p></div>
+  <div class="card"><h3>Counts</h3><p>Timeline: {{ run.timeline_events }}</p><p>Proxy: {{ run.proxy_events }}</p><p>Score: {{ run.score_events }}</p></div>
+  <div class="card"><h3>Reports</h3><p>Red: {{ run.red_report }}</p><p>Blue: {{ run.blue_report }}</p><p>Final: {{ run.final_report }}</p></div>
+</section>
+<h3>Latest timeline events</h3>
+<table><tr><th>Time</th><th>Type</th><th>Detail</th><th>Artifact</th></tr>
+{% for e in timeline %}<tr><td>{{ e.time_utc or e.ts or "" }}</td><td>{{ e.type or e.event_type or "" }}</td><td>{{ e.detail or e.summary or "" }}</td><td>{{ e.artifact or "" }}</td></tr>{% endfor %}
+</table>
+<h3>Latest proxy events</h3>
+<table><tr><th>Time</th><th>Action</th><th>Method</th><th>Path</th><th>Status</th><th>Scope</th></tr>
+{% for e in proxy_events %}<tr><td>{{ e.ts or "" }}</td><td>{{ e.red_action_id or "" }}</td><td>{{ e.method or "" }}</td><td><code>{{ e.path or "" }}</code></td><td>{{ e.status or "" }}</td><td>{{ e.scope_status or "" }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

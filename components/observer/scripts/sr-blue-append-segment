@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import fcntl
+import hashlib
+import json
+import os
+import shutil
+import sys
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def count_lines(path: Path) -> int:
+    with path.open("rb") as handle:
+        return sum(1 for _ in handle)
+
+
+def timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def segment_dirs(root: Path) -> list[Path]:
+    return sorted(path for path in root.iterdir() if path.is_dir() and path.name.isdigit())
+
+
+def rebuild_index(root: Path, index_path: Path) -> list[dict]:
+    manifests = [
+        json.loads((segment / "manifest.json").read_text(encoding="utf-8"))
+        for segment in segment_dirs(root)
+        if (segment / "manifest.json").is_file()
+    ]
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix=".telemetry-index-", dir=index_path.parent, text=True)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            for manifest in manifests:
+                handle.write(json.dumps(manifest, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, index_path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+    return manifests
+
+
+def main() -> int:
+    if len(sys.argv) != 6:
+        print("usage: sr-blue-append-segment RUN_DIR PROXY_EVENTS TARGET_LOG SINCE UNTIL", file=sys.stderr)
+        return 2
+    run_dir = Path(sys.argv[1]).resolve()
+    sources = [Path(sys.argv[2]).resolve(), Path(sys.argv[3]).resolve()]
+    since, until = sys.argv[4:6]
+    try:
+        since_time, until_time = timestamp(since), timestamp(until)
+    except ValueError as error:
+        print(f"invalid segment time: {error}", file=sys.stderr)
+        return 2
+    if since_time >= until_time:
+        print("segment SINCE must be earlier than UNTIL", file=sys.stderr)
+        return 1
+    if any(not path.is_file() for path in sources):
+        print("segment source missing", file=sys.stderr)
+        return 1
+
+    state_path = run_dir / "state/run-state.json"
+    if state_path.exists() and json.loads(state_path.read_text(encoding="utf-8"))["status"]["evidenceSealed"]:
+        print("sealed run is immutable", file=sys.stderr)
+        return 1
+
+    root = run_dir / "blue/telemetry/segments"
+    root.mkdir(parents=True, exist_ok=True)
+    index_path = run_dir / "blue/telemetry/index.jsonl"
+    lock_path = run_dir / "state/blue-segment.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if state_path.exists() and json.loads(state_path.read_text(encoding="utf-8"))["status"]["evidenceSealed"]:
+            print("sealed run is immutable", file=sys.stderr)
+            return 1
+        manifests = rebuild_index(root, index_path)
+        if manifests and since_time < timestamp(manifests[-1]["until"]):
+            print("segment time overlaps previously appended telemetry", file=sys.stderr)
+            return 1
+
+        existing = segment_dirs(root)
+        sequence = (int(existing[-1].name) + 1) if existing else 1
+        segment = root / f"{sequence:06d}"
+        temporary = Path(tempfile.mkdtemp(prefix=f".{sequence:06d}-", dir=root))
+        try:
+            destinations = [temporary / "proxy-events.jsonl", temporary / "target.log"]
+            for source, destination in zip(sources, destinations, strict=True):
+                shutil.copyfile(source, destination)
+            manifest = {
+                "schema_version": 1,
+                "sequence": sequence,
+                "created_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "since": since,
+                "until": until,
+                "artifacts": [
+                    {"path": path.name, "bytes": path.stat().st_size, "lines": count_lines(path), "sha256": digest(path)}
+                    for path in destinations
+                ],
+            }
+            manifest_path = temporary / "manifest.json"
+            manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            for path in [*destinations, manifest_path]:
+                path.chmod(0o444)
+            os.replace(temporary, segment)
+            segment.chmod(0o555)
+            rebuild_index(root, index_path)
+        except Exception:
+            if temporary.exists():
+                shutil.rmtree(temporary)
+            raise
+    print(segment)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import stat
+import sys
+from pathlib import Path
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        print("usage: sr-lock-run RUN_DIR", file=sys.stderr)
+        return 2
+    run_dir = Path(sys.argv[1]).resolve()
+    state_path = run_dir / "state/run-state.json"
+    if not state_path.is_file():
+        print("run state missing", file=sys.stderr)
+        return 1
+    state = json.loads(state_path.read_text(encoding="utf-8"))["status"]
+    if state["state"] != "sealed" or not state["evidenceSealed"]:
+        print("run must be sealed before filesystem locking", file=sys.stderr)
+        return 1
+    paths = sorted(run_dir.rglob("*"), key=lambda path: len(path.parts), reverse=True)
+    for path in paths:
+        if path.is_symlink():
+            continue
+        mode = path.stat().st_mode
+        path.chmod(mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
+    mode = run_dir.stat().st_mode
+    run_dir.chmod(mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
+    print(run_dir)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import sys
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def main() -> int:
+    if len(sys.argv) not in {2, 3} or (len(sys.argv) == 3 and sys.argv[2] != "--allow-sealed"):
+        print("usage: sr-index-artifacts RUN_DIR [--allow-sealed]", file=sys.stderr)
+        return 2
+
+    run_dir = Path(sys.argv[1]).resolve()
+    if not run_dir.is_dir():
+        print(f"run directory not found: {run_dir}", file=sys.stderr)
+        return 2
+
+    output = run_dir / "artifact-index.json"
+    state_path = run_dir / "state/run-state.json"
+    if state_path.exists():
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        if state.get("status", {}).get("evidenceSealed") and "--allow-sealed" not in sys.argv:
+            print("sealed run is immutable", file=sys.stderr)
+            return 1
+    items = []
+    for path in sorted(run_dir.rglob("*")):
+        if not path.is_file() or path.is_symlink() or path == output:
+            continue
+        relative = path.relative_to(run_dir)
+        if relative.parts and relative.parts[0] in {"state", "tmp"}:
+            continue
+        items.append(
+            {
+                "path": relative.as_posix(),
+                "size": path.stat().st_size,
+                "sha256": sha256(path),
+            }
+        )
+
+    document = {
+        "schema_version": 1,
+        "generated_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "run_id": run_dir.name,
+        "artifacts": items,
+    }
+    descriptor, temporary = tempfile.mkstemp(prefix=".artifact-index-", dir=run_dir, text=True)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(document, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        os.replace(temporary, output)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+    print(output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

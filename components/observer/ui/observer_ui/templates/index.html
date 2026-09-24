@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Range observability status</h2>
+  <p><strong>Mode:</strong> {{ status.mode }}</p>
+  <p><strong>Runs discovered:</strong> {{ status.run_count }}</p>
+  <h3>Run roots</h3>
+  <table><tr><th>Path</th><th>Exists</th><th>Directory</th></tr>
+  {% for root in status.runs_roots %}<tr><td><code>{{ root.path }}</code></td><td>{{ root.exists }}</td><td>{{ root.is_dir }}</td></tr>{% endfor %}
+  </table>
+</section>
+{% if status.latest_run %}
+<section class="card">
+  <h2>Latest run</h2>
+  <p><a href="/runs/{{ status.latest_run.run_id }}">{{ status.latest_run.run_id }}</a></p>
+  <ul>
+    <li>Status: {{ status.latest_run.status }}</li>
+    <li>Timeline events: {{ status.latest_run.timeline_events }}</li>
+    <li>Proxy events: {{ status.latest_run.proxy_events }}</li>
+    <li>Final report: {{ status.latest_run.final_report }}</li>
+  </ul>
+</section>
+{% endif %}
+<section class="card warning">
+  <h2>v0 boundary</h2>
+  <p>This UI reads local Observer files only. If data is missing, improve Observer collection rather than adding UI-side SSH.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,22 @@
+[Unit]
+Description=SynthRange Traffic Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=synthrange
+Group=synthrange
+EnvironmentFile=/srv/synthrange-traffic-proxy/config/proxy.env
+Environment=PATH=/home/synthrange/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+WorkingDirectory=/srv/synthrange-traffic-proxy
+ExecStart=/home/synthrange/.local/bin/mitmdump --mode regular --listen-host ${PROXY_LISTEN_HOST} --listen-port ${PROXY_LISTEN_PORT} --set block_global=false --set confdir=/srv/synthrange-traffic-proxy/config/mitmproxy --set flow_detail=1 -s /srv/synthrange-traffic-proxy/addon/synthrange_jsonl_addon.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ReadWritePaths=/srv/synthrange-traffic-proxy
+
+[Install]
+WantedBy=multi-user.target

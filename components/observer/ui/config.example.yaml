@@ -1,0 +1,5 @@
+# Reserved for future file-based configuration.
+# The prototype currently uses environment variables:
+#   SYNTHRANGE_RUNS_ROOTS=/srv/synthrange/runs
+#   SYNTHRANGE_UI_TITLE="SynthRange Observer UI"
+#   SYNTHRANGE_UI_MAX_EVENTS=500

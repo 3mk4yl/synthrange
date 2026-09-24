@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import os
+import socket
+import sys
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+RUN_TRANSITIONS = {
+    "created": {"preflight"},
+    "preflight": {"baseline", "stopped"},
+    "baseline": {"active", "stopped"},
+    "active": {"finalizing", "stopped"},
+    "finalizing": {"stopped"},
+    "stopped": {"collected"},
+    "collected": {"sealed"},
+    "sealed": set(),
+}
+ACTOR_TRANSITIONS = {
+    "pending": {"ready", "stopped"},
+    "ready": {"running", "stopped"},
+    "running": {"finalizing", "stopped"},
+    "finalizing": {"complete", "stopped"},
+    "complete": set(),
+    "stopped": set(),
+}
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def atomic_json(path: Path, document: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}-", dir=path.parent, text=True)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(document, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def append_event(run_dir: Path, event_type: str, detail: str, **fields: str) -> None:
+    event = {
+        "time_utc": now(),
+        "type": event_type,
+        "detail": detail,
+        "observer": socket.gethostname(),
+        **fields,
+    }
+    with (run_dir / "timeline.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, sort_keys=True) + "\n")
+
+
+def initial_document(run_id: str, required_outputs: dict[str, list[str]] | None = None) -> dict:
+    timestamp = now()
+    outputs = required_outputs or {
+        "red": ["red/observations.md", "red/report.md"],
+        "blue": ["blue/observations.md", "blue/report.md"],
+    }
+    return {
+        "apiVersion": "synthrange/v1alpha1",
+        "kind": "RunState",
+        "metadata": {"runId": run_id},
+        "status": {
+            "state": "created",
+            "sequence": 0,
+            "updatedAt": timestamp,
+            "startedAt": None,
+            "endedAt": None,
+            "stopReason": None,
+            "evidenceSealed": False,
+            "actors": {
+                "red": {"state": "pending", "requiredOutputs": outputs["red"], "completedAt": None},
+                "blue": {"state": "pending", "requiredOutputs": outputs["blue"], "completedAt": None},
+            },
+            "history": [],
+        },
+    }
+
+
+def update_metadata(run_dir: Path, state: str) -> None:
+    path = run_dir / "metadata.json"
+    if not path.exists():
+        return
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["status"] = state
+    atomic_json(path, document)
+
+
+def validate_cross_role_gate(status: dict, new_state: str) -> str | None:
+    actors = {role: value["state"] for role, value in status["actors"].items()}
+    if new_state == "baseline" and actors["blue"] not in {"ready", "running"}:
+        return "Blue must be ready before baseline"
+    if new_state == "active" and any(state != "running" for state in actors.values()):
+        return "Red and Blue must be running before activation"
+    if new_state == "finalizing" and any(
+        state not in {"running", "finalizing", "complete", "stopped"}
+        for state in actors.values()
+    ):
+        return "all roles must be active or terminal before finalization"
+    if new_state in {"collected", "sealed"} and any(
+        state not in {"complete", "stopped"} for state in actors.values()
+    ):
+        return "all roles must be complete or explicitly stopped"
+    return None
+
+
+def main() -> int:
+    if len(sys.argv) < 3:
+        print("usage: sr-run-state RUN_DIR init | RUN_DIR SUBJECT NEW_STATE [REASON]", file=sys.stderr)
+        return 2
+    run_dir = Path(sys.argv[1]).resolve()
+    run_dir.mkdir(parents=True, exist_ok=True)
+    timeline = run_dir / "timeline.jsonl"
+    timeline.touch(exist_ok=True)
+    state_path = run_dir / "state/run-state.json"
+
+    if sys.argv[2] == "init":
+        if state_path.exists():
+            print(f"state already exists: {state_path}", file=sys.stderr)
+            return 1
+        required_outputs = None
+        if len(sys.argv) > 3:
+            import yaml
+
+            brief = yaml.safe_load(Path(sys.argv[3]).read_text(encoding="utf-8"))
+            required_outputs = {
+                role: list(brief["spec"]["participants"][role]["requiredOutputs"])
+                for role in ("red", "blue")
+            }
+        document = initial_document(run_dir.name, required_outputs)
+        atomic_json(state_path, document)
+        append_event(run_dir, "run.state.initialized", "state=created", subject="run", state="created")
+        print(state_path)
+        return 0
+
+    if len(sys.argv) < 4:
+        print("usage: sr-run-state RUN_DIR SUBJECT NEW_STATE [REASON]", file=sys.stderr)
+        return 2
+    if not state_path.exists():
+        print(f"run state not found: {state_path}", file=sys.stderr)
+        return 1
+    subject, new_state = sys.argv[2], sys.argv[3]
+    reason = " ".join(sys.argv[4:])
+    document = json.loads(state_path.read_text(encoding="utf-8"))
+    status = document["status"]
+    if status["evidenceSealed"]:
+        print("sealed run state is immutable", file=sys.stderr)
+        return 1
+
+    if subject == "run":
+        old_state = status["state"]
+        allowed = RUN_TRANSITIONS.get(old_state, set())
+    elif subject in {"red", "blue"}:
+        old_state = status["actors"][subject]["state"]
+        allowed = ACTOR_TRANSITIONS.get(old_state, set())
+    else:
+        print("subject must be run, red, or blue", file=sys.stderr)
+        return 2
+    if new_state not in allowed:
+        print(f"invalid {subject} transition: {old_state} -> {new_state}", file=sys.stderr)
+        return 1
+    if subject == "run":
+        gate_error = validate_cross_role_gate(status, new_state)
+        if gate_error:
+            print(f"run gate failed: {gate_error}", file=sys.stderr)
+            return 1
+
+    timestamp = now()
+    status["sequence"] += 1
+    status["updatedAt"] = timestamp
+    if subject == "run":
+        status["state"] = new_state
+        if new_state == "active" and status["startedAt"] is None:
+            status["startedAt"] = timestamp
+        if new_state == "stopped":
+            status["endedAt"] = timestamp
+            status["stopReason"] = reason or "normal completion"
+        if new_state == "sealed":
+            status["evidenceSealed"] = True
+    else:
+        actor = status["actors"][subject]
+        actor["state"] = new_state
+        if new_state == "complete":
+            actor["completedAt"] = timestamp
+    status["history"].append({
+        "sequence": status["sequence"],
+        "time": timestamp,
+        "subject": subject,
+        "from": old_state,
+        "to": new_state,
+        "reason": reason,
+    })
+    atomic_json(state_path, document)
+    if subject == "run":
+        update_metadata(run_dir, new_state)
+    append_event(
+        run_dir,
+        f"{subject}.state.changed",
+        f"{old_state}->{new_state}" + (f" reason={reason}" if reason else ""),
+        subject=subject,
+        previous=old_state,
+        state=new_state,
+    )
+    print(json.dumps(document, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

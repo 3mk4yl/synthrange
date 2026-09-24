@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+root=Path(os.environ.get('SYNTHRANGE_ROOT','/srv/synthrange'))
+base=root/'runs'; base.mkdir(parents=True, exist_ok=True)
+items=[]
+for meta in sorted(base.glob('*/metadata.json'), reverse=True):
+    try: data=json.loads(meta.read_text())
+    except Exception: continue
+    data['run_path']=str(meta.parent); items.append(data)
+(base/'index.json').write_text(json.dumps({'schema_version':1,'runs':items}, indent=2, sort_keys=True)+'\n')
+print(base/'index.json')

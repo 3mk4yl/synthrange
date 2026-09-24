@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+printf "service="; systemctl is-active synthrange-traffic-proxy.service || true
+printf "listener="; ss -ltn sport = :8080 | awk 'NR>1{print $4}' | paste -sd, -
+printf "log_path=/srv/synthrange-traffic-proxy/logs/proxy-events.jsonl\n"
+printf "log_lines="; [ -f /srv/synthrange-traffic-proxy/logs/proxy-events.jsonl ] && wc -l < /srv/synthrange-traffic-proxy/logs/proxy-events.jsonl || echo 0
+printf "last_event=\n"
+tail -n 1 /srv/synthrange-traffic-proxy/logs/proxy-events.jsonl 2>/dev/null || true

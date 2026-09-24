@@ -1,0 +1,90 @@
+apiVersion: synthrange/v1alpha1
+kind: Playbook
+metadata:
+  id: web-surface-discovery
+  name: Web Surface Discovery
+  version: v0.1.0
+  status: available
+  description: Autonomous low-impact discovery of an approved web application surface.
+spec:
+  role: red
+  objective: Map the externally visible web surface and produce evidence-backed hypotheses for defensive analysis.
+  requires:
+    targetCapabilities:
+      - service.health
+      - web.http
+    components:
+      - observer
+      - traffic-proxy
+  authority:
+    autonomous:
+      - Inspect approved HTTP endpoints through the declared traffic path.
+      - Choose low-impact discovery techniques and follow evidence within scope.
+      - Record hypotheses, actions, responses, and findings.
+    approvalRequired:
+      - Authentication attempts using credentials not supplied by the run brief.
+      - High-volume enumeration or any action likely to affect availability.
+      - Transition from discovery into exploitation or state modification.
+    prohibited:
+      - Access to undeclared hosts or services.
+      - Persistence, destructive actions, denial of service, or data modification.
+      - Bypassing a mandatory Traffic Proxy.
+  inputs:
+    - name: run_id
+      required: true
+      description: Unique Observer-owned run identifier.
+    - name: target_endpoint
+      required: true
+      description: Approved HTTP target endpoint.
+    - name: proxy_endpoint
+      required: true
+      description: Traffic Proxy endpoint required for Red web requests.
+  phases:
+    - id: establish-baseline
+      intent: Confirm the declared target and evidence path are operational.
+      decisionSpace:
+        - Choose a minimal request that proves Target reachability through the proxy.
+        - Stop if the endpoint, proxy, or run identifier is inconsistent.
+    - id: discover-surface
+      intent: Identify reachable application routes, assets, metadata, and technologies.
+      decisionSpace:
+        - Prioritize promising evidence and adapt request order autonomously.
+        - Select discovery that remains within the run brief's enforced rate, burst, method, and request budget.
+    - id: analyze-findings
+      intent: Distinguish confirmed observations from hypotheses and defensive opportunities.
+      decisionSpace:
+        - Correlate response patterns and select the strongest evidence.
+        - Decide when additional discovery has diminishing value.
+    - id: report
+      intent: Produce a concise evidence-backed Red report.
+      decisionSpace:
+        - Organize findings by relevance, confidence, and defensive value.
+  evidence:
+    - type: proxy.http-events
+      source: traffic-proxy
+      description: Structured request and response metadata tagged with the run ID.
+    - type: red.activity-report
+      source: red
+      description: Intent, actions, observations, hypotheses, and findings.
+    - type: target.health
+      source: observer
+      description: Target health before and after Red activity.
+  successCriteria:
+    - The approved web surface is mapped sufficiently to support defensive analysis.
+    - Every reported finding references observable evidence.
+    - Target health remains stable throughout the run.
+  stopConditions:
+    - The target or evidence path becomes unavailable or inconsistent.
+    - Continued discovery would require undeclared scope or elevated authority.
+    - The operator issues a stop instruction.
+    - The Traffic Proxy blocks a request for scope, method, rate, burst, budget, or run-ID policy.
+  outputs:
+    - red/observations.md
+    - red/report.md
+  composition:
+    requiresPlaybooks:
+      - run-evidence-baseline
+    complements:
+      - web-activity-triage
+  mitreAttack:
+    - T1595.002

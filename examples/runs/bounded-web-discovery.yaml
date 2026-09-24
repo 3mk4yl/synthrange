@@ -1,0 +1,75 @@
+apiVersion: synthrange/v1alpha1
+kind: RunBrief
+metadata:
+  id: bounded-web-discovery-001
+  name: Bounded web discovery
+  objective: Validate a paced Red discovery and independent Blue triage against an approved web target.
+spec:
+  target:
+    adapterId: juice-shop
+    endpoint: http://192.0.2.30:3000
+  playbooks:
+    - run-evidence-baseline
+    - web-surface-discovery
+    - web-activity-triage
+  participants:
+    red:
+      integration: hermes
+      provider: example-local
+      model: example-red-model
+      requiredOutputs:
+        - red/observations.md
+        - red/report.md
+    blue:
+      integration: hermes
+      provider: example-remote
+      model: example-blue-model
+      requiredOutputs:
+        - blue/observations.md
+        - blue/report.md
+  trafficPolicy:
+    proxyRequired: true
+    allowedMethods: [GET, HEAD, OPTIONS]
+    maxRequests: 60
+    sustainedRequestsPerSecond: 1
+    burst: 2
+  authority:
+    red:
+      autonomous:
+        - Inspect approved unauthenticated HTTP endpoints through the required proxy.
+        - Write run-scoped observations and reports.
+      approvalRequired:
+        - Any request method not declared in the traffic policy.
+      prohibited:
+        - Access undeclared hosts or bypass the required proxy.
+        - Modify target state or availability.
+    blue:
+      autonomous:
+        - Read Observer-provided run-scoped telemetry.
+        - Write evidence-backed triage observations and reports.
+      approvalRequired:
+        - Any response action that changes target or network state.
+      prohibited:
+        - Control Target or Proxy through an undeclared remote shell.
+        - Destroy, rewrite, or conceal evidence.
+  lifecycle:
+    maxDurationSeconds: 2700
+    baselineSeconds: 180
+    stopConditions:
+      - Target or Proxy health fails.
+      - A request violates scope, method, rate, or budget policy.
+      - Required evidence provenance is lost.
+      - The operator issues stop.
+    requiredRunStates: [created, preflight, baseline, active, finalizing, stopped, collected, sealed]
+  evidence:
+    observerAuthoritative: true
+    requiredArtifacts:
+      - timeline.jsonl
+      - approvals.jsonl
+      - proxy/proxy-events.jsonl
+      - red/report.md
+      - blue/report.md
+      - artifact-index.json
+  approvals:
+    recordingRequired: true
+    defaultDecision: deny

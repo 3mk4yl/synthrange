@@ -1,0 +1,74 @@
+name: Bug report
+description: Report a reproducible problem in SynthRange.
+title: "bug: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private certificates, sensitive evidence, or vulnerabilities requiring private disclosure.
+  - type: input
+    id: revision
+    attributes:
+      label: SynthRange revision
+      description: Commit SHA, tag, or branch.
+      placeholder: abcdef0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Observer
+        - Traffic Proxy
+        - Target adapter
+        - Playbook
+        - Agent integration
+        - Schema or contract
+        - Documentation or diagram
+        - Deployment
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, deployment shape, target adapter, and relevant components.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Minimal deterministic steps using sanitized data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Logs, test output, or screenshots with sensitive values removed.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: This report contains no secrets or sensitive run evidence.
+          required: true
+        - label: This is not a vulnerability requiring private disclosure.
+          required: true

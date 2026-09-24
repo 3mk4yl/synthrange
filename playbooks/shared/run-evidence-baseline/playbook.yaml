@@ -1,0 +1,81 @@
+apiVersion: synthrange/v1alpha1
+kind: Playbook
+metadata:
+  id: run-evidence-baseline
+  name: Run Evidence Baseline
+  version: v0.1.0
+  status: available
+  description: Shared evidence and health contract applied to every observable run.
+spec:
+  role: shared
+  objective: Establish run identity, evidence locations, health signals, and minimum reporting before Red and Blue work begins.
+  requires:
+    targetCapabilities:
+      - service.health
+    components:
+      - observer
+  authority:
+    autonomous:
+      - Create the run directory and metadata.
+      - Record timeline events and target health.
+      - Collect declared evidence without modifying its source.
+    approvalRequired:
+      - Enabling packet capture outside the declared capture filter.
+      - Collecting a new data source that may contain undeclared sensitive data.
+    prohibited:
+      - Altering participant reports or source evidence.
+      - Expanding collection beyond declared systems.
+  inputs:
+    - name: run_id
+      required: true
+      description: Unique identifier used across agents, proxy events, and artifacts.
+    - name: target_endpoint
+      required: true
+      description: Endpoint used for health verification.
+    - name: observer_run_dir
+      required: true
+      description: Observer-owned run directory.
+  phases:
+    - id: initialize
+      intent: Create a consistent run identity and artifact layout.
+      decisionSpace:
+        - Validate identifiers and required paths before participant work begins.
+    - id: baseline
+      intent: Record initial target health and available evidence sources.
+      decisionSpace:
+        - Select declared health and collection checks appropriate to the adapter.
+    - id: collect
+      intent: Preserve participant, proxy, target, and Observer artifacts.
+      decisionSpace:
+        - Retry transient collection failures without hiding permanent gaps.
+    - id: finalize
+      intent: Record final health, index artifacts, and expose collection gaps.
+      decisionSpace:
+        - Mark missing evidence explicitly and preserve partial results.
+  evidence:
+    - type: observer.timeline
+      source: observer
+      description: Ordered run events with timestamps and provenance.
+    - type: target.health
+      source: observer
+      description: Target health before and after participant activity.
+    - type: observer.artifact-index
+      source: observer
+      description: Inventory of collected artifacts and collection failures.
+  successCriteria:
+    - Run identity is consistent across declared evidence sources.
+    - Initial and final target health are recorded.
+    - Missing or failed evidence collection is visible rather than silent.
+  stopConditions:
+    - Run identity is ambiguous or conflicts with an existing active run.
+    - Target identity does not match the run brief.
+    - The operator issues a stop instruction.
+  outputs:
+    - metadata.json
+    - timeline.jsonl
+    - artifact-index.json
+  composition:
+    requiresPlaybooks: []
+    complements:
+      - web-activity-triage
+      - web-surface-discovery

@@ -1,0 +1,21 @@
+[Unit]
+Description=SynthRange Observer UI
+After=network.target
+
+[Service]
+Type=simple
+User=synthrange
+Group=synthrange
+WorkingDirectory=/opt/synthrange/components/observer/ui
+Environment=SYNTHRANGE_RUNS_ROOTS=/srv/synthrange/runs
+ExecStart=/opt/synthrange/components/observer/ui/.venv/bin/uvicorn observer_ui.app:app --host 127.0.0.1 --port 8088
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/srv/synthrange/runs
+
+[Install]
+WantedBy=multi-user.target

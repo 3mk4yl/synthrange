@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Timeline: {{ run_id }}</h2>
+<table><tr><th>#</th><th>Time</th><th>Type</th><th>Detail</th><th>Artifact</th></tr>
+{% for e in events %}<tr><td>{{ loop.index }}</td><td>{{ e.time_utc or e.ts or "" }}</td><td>{{ e.type or e.event_type or "" }}</td><td>{{ e.detail or e.summary or "" }}</td><td>{{ e.artifact or "" }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

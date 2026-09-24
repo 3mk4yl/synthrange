@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600" viewBox="0 0 1600 600" role="img" aria-labelledby="title desc">
+  <title id="title">SynthRange — AI-assisted adversarial simulation and defensive intelligence</title>
+  <desc id="desc">A dark technical banner. Red and blue paths meet at a neutral Observer node above a violet evidence plane. The banner identifies SynthRange as an open research idea for AI-assisted adversarial simulation and defensive intelligence.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#060d18"/>
+      <stop offset="0.55" stop-color="#091a2d"/>
+      <stop offset="1" stop-color="#110d2a"/>
+    </linearGradient>
+    <linearGradient id="edgeFade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#32d7e6" stop-opacity="0"/>
+      <stop offset="0.2" stop-color="#32d7e6" stop-opacity="0.7"/>
+      <stop offset="0.8" stop-color="#aa8cff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#aa8cff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="redFlow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff647c" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#ff647c"/>
+      <stop offset="1" stop-color="#f5f7ff"/>
+    </linearGradient>
+    <linearGradient id="blueFlow" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#5aa7ff" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#5aa7ff"/>
+      <stop offset="1" stop-color="#f5f7ff"/>
+    </linearGradient>
+    <linearGradient id="violetPlane" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8f6bff" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#26194c" stop-opacity="0.08"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#28506b" stroke-opacity="0.2" stroke-width="1"/>
+    </pattern>
+    <filter id="glowCyan" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="glowRed" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="glowViolet" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <style>
+      .display{fill:#f5f8ff;font-family:Arial,Helvetica,sans-serif;font-size:96px;font-weight:800;letter-spacing:-4px}
+      .kicker{fill:#5be0ef;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;letter-spacing:3px}
+      .subtitle{fill:#c2d1e7;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:500;letter-spacing:.2px}
+      .micro{fill:#9cb0ca;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px}
+      .small{fill:#cbd8ea;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:500}
+      .principle{fill:#f0f4fa;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;letter-spacing:1px}
+      .principleSub{fill:#91a8c4;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:500}
+      .nodeLabel{font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.2px}
+    </style>
+  </defs>
+
+  <rect width="1600" height="600" fill="url(#background)"/>
+  <rect width="1600" height="600" fill="url(#grid)" opacity="0.8"/>
+  <path d="M60 86H540 M60 86V116 M60 86h30 M1060 86h480 M1540 86v30 M1510 86h30" fill="none" stroke="url(#edgeFade)" stroke-width="2"/>
+  <path d="M60 512H1540" fill="none" stroke="#31536f" stroke-opacity="0.55"/>
+
+  <!-- Left identity panel -->
+  <g transform="translate(88 116)">
+    <rect x="0" y="0" width="210" height="30" rx="15" fill="#0c2638" stroke="#2c9eae" stroke-opacity="0.75"/>
+    <circle cx="18" cy="15" r="5" fill="#5be0ef" filter="url(#glowCyan)"/>
+    <text class="micro" x="34" y="19" fill="#72e7f4">OPEN RESEARCH IDEA</text>
+    <text class="display" x="0" y="142">SynthRange</text>
+    <text class="kicker" x="4" y="182">AI-ASSISTED ADVERSARIAL SIMULATION</text>
+    <text class="subtitle" x="4" y="222">Defensive intelligence, controlled scope, verifiable evidence.</text>
+
+    <g transform="translate(0 274)">
+      <rect x="0" y="0" width="470" height="1" fill="#2d526c"/>
+      <g transform="translate(0 24)">
+        <circle cx="10" cy="10" r="9" fill="none" stroke="#5be0ef" stroke-width="2"/>
+        <path d="M6 10l3 3 6-7" fill="none" stroke="#5be0ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <text class="principle" x="34" y="8">BOUNDED SCOPE</text><text class="principleSub" x="34" y="27">Declared authority and explicit stop conditions</text>
+      </g>
+      <g transform="translate(0 76)">
+        <circle cx="10" cy="10" r="9" fill="none" stroke="#5aa7ff" stroke-width="2"/>
+        <path d="M5 10h10M10 5v10" fill="none" stroke="#5aa7ff" stroke-width="2" stroke-linecap="round"/>
+        <text class="principle" x="34" y="8">LOCAL TARGETS</text><text class="principleSub" x="34" y="27">Systems you own or are authorized to assess</text>
+      </g>
+      <g transform="translate(0 128)">
+        <circle cx="10" cy="10" r="9" fill="none" stroke="#aa8cff" stroke-width="2"/>
+        <path d="M6 6h8v8H6zM8 9h4" fill="none" stroke="#aa8cff" stroke-width="1.5" stroke-linecap="round"/>
+        <text class="principle" x="34" y="8">EVIDENCE-LED</text><text class="principleSub" x="34" y="27">Neutral records, artifacts, timelines, and review</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- System field -->
+  <g transform="translate(760 90)">
+    <text class="micro" x="0" y="0">CONTROLLED RANGE · SYSTEM VIEW</text>
+    <path d="M0 22H736" stroke="#31536f" stroke-opacity="0.7"/>
+
+    <!-- Observation plane -->
+    <path d="M42 355L370 182 720 355 370 500Z" fill="url(#violetPlane)" stroke="#aa8cff" stroke-opacity="0.82" stroke-width="2"/>
+    <path d="M130 401L370 275 624 401M224 450L370 373 520 450M370 182V500M42 355H720" fill="none" stroke="#aa8cff" stroke-opacity="0.3"/>
+    <text class="micro" x="370" y="430" text-anchor="middle" fill="#c0aaff">OBSERVER / EVIDENCE LAYER</text>
+    <text class="small" x="370" y="454" text-anchor="middle" fill="#b5a4dd">artifacts · timeline · health · reports</text>
+
+    <!-- Red / blue operational paths -->
+    <path d="M28 176H154V242H292L370 304" fill="none" stroke="url(#redFlow)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowRed)"/>
+    <path d="M708 176H582V242H448L370 304" fill="none" stroke="url(#blueFlow)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowCyan)"/>
+    <path d="M154 242V355M582 242V355M370 304V382" fill="none" stroke="#aa8cff" stroke-opacity="0.58" stroke-width="2" stroke-dasharray="6 7"/>
+
+    <!-- Red nodes -->
+    <g transform="translate(28 151)">
+      <rect width="126" height="50" rx="10" fill="#17172a" stroke="#ff647c" stroke-width="2"/>
+      <circle cx="20" cy="25" r="8" fill="none" stroke="#ff647c" stroke-width="2"/><path d="M20 8v7M20 35v7M3 25h7M30 25h7" stroke="#ff647c" stroke-width="1.5"/>
+      <text class="nodeLabel" x="49" y="22" fill="#ff8597">RED</text><text class="small" x="49" y="38">explore</text>
+    </g>
+    <g transform="translate(196 215)">
+      <rect width="140" height="54" rx="10" fill="#17172a" stroke="#ff647c" stroke-width="2"/>
+      <path d="M18 16h18v22H18zM22 20h10M22 26h8" fill="none" stroke="#ff647c" stroke-width="1.5"/>
+      <text class="nodeLabel" x="48" y="23" fill="#ff8597">PLAYBOOK</text><text class="small" x="48" y="40">bounded</text>
+    </g>
+
+    <!-- Blue nodes -->
+    <g transform="translate(582 151)">
+      <rect width="126" height="50" rx="10" fill="#17172a" stroke="#5aa7ff" stroke-width="2"/>
+      <path d="M20 13l11 5v8c0 8-5 12-11 15-6-3-11-7-11-15v-8zM16 26l3 3 6-7" fill="none" stroke="#5aa7ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <text class="nodeLabel" x="48" y="22" fill="#81baff">BLUE</text><text class="small" x="48" y="38">defend</text>
+    </g>
+    <g transform="translate(396 215)">
+      <rect width="128" height="54" rx="10" fill="#17172a" stroke="#5aa7ff" stroke-width="2"/>
+      <path d="M18 17h18v20H18zM22 21h10M22 27h10M22 33h6" fill="none" stroke="#5aa7ff" stroke-width="1.5"/>
+      <text class="nodeLabel" x="48" y="23" fill="#81baff">TRIAGE</text><text class="small" x="48" y="40">detect</text>
+    </g>
+
+    <!-- Observer node -->
+    <g transform="translate(320 270)" filter="url(#glowViolet)">
+      <rect width="100" height="76" rx="16" fill="#171b37" stroke="#f5f7ff" stroke-opacity="0.92" stroke-width="2.5"/>
+      <path d="M50 15l20 10v14c0 14-9 22-20 28-11-6-20-14-20-28V25zM50 27v25M38 39h24" fill="none" stroke="#e9e4ff" stroke-width="2" stroke-linecap="round"/>
+      <text class="nodeLabel" x="50" y="91" text-anchor="middle" fill="#e9e4ff">OBSERVER</text>
+    </g>
+
+    <!-- Endpoint markers -->
+    <g fill="#8f6bff" filter="url(#glowViolet)"><circle cx="154" cy="355" r="5"/><circle cx="582" cy="355" r="5"/><circle cx="370" cy="382" r="5"/></g>
+    <path d="M0 528H736" stroke="#31536f" stroke-opacity="0.7"/>
+    <text class="small" x="0" y="554">Red and Blue operate through declared playbooks. Observer keeps the neutral run record.</text>
+  </g>
+
+  <!-- Bottom framing -->
+  <g transform="translate(88 548)">
+    <path d="M0 0H1424" stroke="#31536f" stroke-opacity="0.6"/>
+    <text class="micro" x="0" y="30">SYNTHRANGE</text><text class="small" x="132" y="30">A reference architecture for studying reproducible AI-assisted security work.</text>
+    <text class="micro" x="1424" y="30" text-anchor="end" fill="#5be0ef">SCOPE · EVIDENCE · LEARNING</text>
+  </g>
+</svg>

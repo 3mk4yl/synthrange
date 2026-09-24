@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+RUN_DIR=${1:-/srv/synthrange/latest}; PIDFILE="$RUN_DIR/state/tcpdump.pid"
+[ -s "$PIDFILE" ] || { echo "no capture pidfile"; exit 0; }
+PID=$(cat "$PIDFILE")
+if kill -0 "$PID" 2>/dev/null; then sudo kill -INT "$PID" || true; sleep 1; fi
+rm -f "$PIDFILE"; /srv/synthrange/scripts/sr-event "$RUN_DIR" capture.stop "pid=$PID" >/dev/null

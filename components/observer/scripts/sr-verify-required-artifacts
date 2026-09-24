@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import yaml
+
+
+def main() -> int:
+    if len(sys.argv) not in {2, 3} or (len(sys.argv) == 3 and sys.argv[2] != "--pre-seal"):
+        print("usage: sr-verify-required-artifacts RUN_DIR [--pre-seal]", file=sys.stderr)
+        return 2
+    run_dir = Path(sys.argv[1]).resolve()
+    brief_path = run_dir / "run-brief.yaml"
+    if not brief_path.exists():
+        print("no run brief; required-artifact verification skipped")
+        return 0
+    brief = yaml.safe_load(brief_path.read_text(encoding="utf-8"))
+    required = list(brief["spec"]["evidence"]["requiredArtifacts"])
+    if "--pre-seal" in sys.argv:
+        required = [path for path in required if path != "artifact-index.json"]
+    missing = []
+    for relative in required:
+        path = (run_dir / relative).resolve()
+        if run_dir not in path.parents:
+            print(f"required artifact escapes run directory: {relative}", file=sys.stderr)
+            return 1
+        if not path.is_file():
+            missing.append(relative)
+    if missing:
+        print(f"missing required artifacts: {', '.join(missing)}", file=sys.stderr)
+        return 1
+    print(f"required_artifacts={len(required)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

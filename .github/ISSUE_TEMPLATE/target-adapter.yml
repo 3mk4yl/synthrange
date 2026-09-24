@@ -1,0 +1,57 @@
+name: Target adapter proposal
+description: Propose or implement a reproducible target adapter.
+title: "target: "
+labels: [target-adapter, help wanted]
+body:
+  - type: input
+    id: target
+    attributes:
+      label: Target
+      placeholder: Product, operating system, service, or application
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform family
+      options: [web-application, linux, windows, macos]
+    validations:
+      required: true
+  - type: textarea
+    id: deployment
+    attributes:
+      label: Reproducible deployment and reset
+      description: Image, Compose, VM, provisioning, verification, and reset approach.
+    validations:
+      required: true
+  - type: textarea
+    id: capabilities
+    attributes:
+      label: Proposed capabilities
+      description: Portable dotted capabilities exposed by the adapter.
+      placeholder: |-
+        web.http
+        service.health
+    validations:
+      required: true
+  - type: textarea
+    id: telemetry
+    attributes:
+      label: Telemetry and evidence
+      description: Logs, health, network, and other observable data sources.
+    validations:
+      required: true
+  - type: textarea
+    id: playbooks
+    attributes:
+      label: Compatible playbooks
+      description: Existing playbooks expected to match these capabilities.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: The target is intended for owned or explicitly authorized environments.
+          required: true
+        - label: I can add a `target.yaml`, README, lifecycle, and validation tests.
+          required: true

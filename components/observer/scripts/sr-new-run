@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PLAYBOOK=${1:-manual-playbook}
+BRIEF=${2:-}
+SAFE_PLAYBOOK=$(printf '%s' "$PLAYBOOK" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+|-+$//g')
+[ -n "$SAFE_PLAYBOOK" ] || SAFE_PLAYBOOK=manual-playbook
+RUN_ID="$(date -u +%Y-%m-%d-%H%M%S)-${SAFE_PLAYBOOK}"
+ROOT=${SYNTHRANGE_ROOT:-/srv/synthrange}
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SCHEMA_DIR=${SYNTHRANGE_SCHEMA_DIR:-$ROOT/schemas}
+if [ -n "$BRIEF" ]; then
+  test -f "$BRIEF"
+  "$SCRIPT_DIR/sr-validate-run-brief" "$BRIEF" "$SCHEMA_DIR/run-brief.schema.json" >/dev/null
+  RUN_ID=$(python3 -c 'import sys,yaml; print(yaml.safe_load(open(sys.argv[1]))["metadata"]["id"])' "$BRIEF")
+fi
+BASE="$ROOT/runs"; RUN_DIR="$BASE/$RUN_ID"
+if [ -e "$RUN_DIR" ]; then
+  echo "run already exists: $RUN_DIR" >&2
+  exit 1
+fi
+mkdir -p "$RUN_DIR"/{red,blue,proxy,target,observer,reports,proposals/self-improvement,artifacts/{logs/{red,blue,target},pcaps,validation},state,tmp}
+python3 - "$RUN_DIR/metadata.json" "$RUN_ID" "$PLAYBOOK" <<'PY'
+import json, socket, sys
+from datetime import datetime, timezone
+from pathlib import Path
+path, run_id, playbook = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+document = {
+    "run_id": run_id,
+    "playbook": playbook,
+    "created_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "status": "created",
+    "observer_host": socket.gethostname(),
+    "schema_version": 2,
+    "paths": {
+        "timeline": "timeline.jsonl",
+        "approvals": "approvals.jsonl",
+        "run_state": "state/run-state.json",
+        "reports": "reports/",
+        "artifacts": "artifacts/",
+    },
+}
+path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+: > "$RUN_DIR/timeline.jsonl"; : > "$RUN_DIR/approvals.jsonl"; : > "$RUN_DIR/score_events.jsonl"
+touch "$RUN_DIR/reports/final-report.md" "$RUN_DIR/reports/notes.md"
+COPIED_BRIEF=
+if [ -n "$BRIEF" ]; then
+  COPIED_BRIEF="$RUN_DIR/run-brief.yaml"
+  cp "$BRIEF" "$COPIED_BRIEF"
+fi
+"$SCRIPT_DIR/sr-run-state" "$RUN_DIR" init ${COPIED_BRIEF:+"$COPIED_BRIEF"} >/dev/null
+ln -sfn "$RUN_DIR" "$ROOT/latest"
+"$SCRIPT_DIR/sr-event" "$RUN_DIR" run.created "playbook=$PLAYBOOK" >/dev/null
+[ ! -x "$SCRIPT_DIR/sr-reindex-runs" ] || SYNTHRANGE_ROOT="$ROOT" "$SCRIPT_DIR/sr-reindex-runs" >/dev/null || true
+echo "$RUN_DIR"
